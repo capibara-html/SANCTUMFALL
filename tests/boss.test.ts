@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alive, board, byDef } from './helpers';
-import { BattleSession, endTurn, forecastIntent, planEnemies, upcomingLitany, useAbility, useFootprint } from '../src/core';
+import { BattleSession, RULES, endTurn, forecastIntent, planEnemies, upcomingLitany, useAbility, useFootprint } from '../src/core';
 
 const NAVE = [
   'L~......',
@@ -83,17 +83,18 @@ describe('Leviathan', () => {
     const s = board(['L~1B..', '~~....'], { objectives: [{ kind: 'banishBoss', label: 'Banish' }] });
     const lev = byDef(s, 'leviathan');
     const p = byDef(s, 'penitent');
+    const full = lev.maxHp;
     useAbility(s, { abilityId: 'censer_flail', sourceId: p.id, dir: 3 });
-    expect(lev.hp).toBe(6);
+    expect(lev.hp).toBe(full);
     const bell = byDef(s, 'bell');
     bell.hp = 1;
     p.acted = false;
     useAbility(s, { abilityId: 'censer_flail', sourceId: p.id, dir: 1 });
     expect(alive(s, bell)).toBe(false);
-    expect(lev.hp).toBe(4);
+    expect(lev.hp).toBe(full - RULES.bellSealDamage);
     p.acted = false;
     useAbility(s, { abilityId: 'censer_flail', sourceId: p.id, dir: 3 });
-    expect(lev.hp).toBe(2);
+    expect(lev.hp).toBe(full - RULES.bellSealDamage - 2);
   });
 
   it('banishing the Leviathan wins the Drowned Nave', () => {

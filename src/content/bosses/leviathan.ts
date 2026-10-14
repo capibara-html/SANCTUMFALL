@@ -158,7 +158,7 @@ registerUnit({
   name: 'Leviathan',
   title: 'The Drowned Choir',
   faction: 'demon',
-  hp: 6,
+  hp: 8,
   move: 0,
   size: 2,
   tags: ['demon', 'boss', 'massive', 'aquatic'],

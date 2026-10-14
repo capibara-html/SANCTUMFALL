@@ -51,6 +51,13 @@ export function intentQueue(s: GameState) {
 export function endTurn(s: GameState): GameEvent[] {
   const ev: GameEvent[] = [];
   if (s.phase !== 'player') return ev;
+  resolveReckoning(s, ev);
+  if (s.phase === 'player') beginRound(s, ev);
+  return ev;
+}
+
+/** The end-of-round sequence, without starting the next round. */
+export function resolveReckoning(s: GameState, ev: EventSink): void {
   ev.push({ t: 'banner', text: 'The Reckoning', sub: 'Declared rites resolve' });
 
   // 1. The Taint gnaws at the living.
@@ -58,7 +65,7 @@ export function endTurn(s: GameState): GameEvent[] {
     if (e.faction === 'vigil' && tileAt(s, e.pos)?.corrupted) dealDamage(s, e, RULES.taintDamage, 'taint', ev);
   }
   checkOutcome(s, ev);
-  if (s.phase !== 'player') return ev;
+  if (s.phase !== 'player') return;
 
   // 2. Declared intents resolve in order. Dead or silenced demons do nothing.
   for (const e of intentQueue(s)) {
@@ -67,16 +74,12 @@ export function endTurn(s: GameState): GameEvent[] {
     e.intent = null;
     resolveUse(s, use, ev);
     checkOutcome(s, ev);
-    if (s.phase !== 'player') return ev;
+    if (s.phase !== 'player') return;
   }
 
   // 3. The Taint creeps.
   applySpread(s, ev);
   checkOutcome(s, ev, true);
-  if (s.phase !== 'player') return ev;
-
-  beginRound(s, ev);
-  return ev;
 }
 
 // --- player actions ------------------------------------------------------------

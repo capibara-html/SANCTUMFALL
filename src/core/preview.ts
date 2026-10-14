@@ -2,7 +2,7 @@
 // entity. The UI never re-implements rules to draw previews.
 import { cloneState } from './clone';
 import { resolveUse } from './abilities';
-import { endTurn } from './turn';
+import { resolveReckoning } from './turn';
 import { getEntity } from './grid';
 import type { GameEvent } from './events';
 import type { AbilityUse, GameState, Vec } from './types';
@@ -79,8 +79,7 @@ export function forecastIntent(s: GameState, enemyId: string): Forecast | null {
  */
 export function forecastReckoning(s: GameState): Forecast {
   const after = cloneState(s);
-  const all = endTurn(after);
-  const cut = all.findIndex((e, i) => i > 0 && e.t === 'banner' && e.text.startsWith('Round'));
-  const events = cut >= 0 ? all.slice(0, cut) : all;
+  const events: GameEvent[] = [];
+  resolveReckoning(after, events);
   return summarise(s, after, events);
 }
