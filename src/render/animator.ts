@@ -84,10 +84,31 @@ export class Animator {
     this.busy = true;
     try {
       for (const ev of events) await this.step(ev, final);
+      if (final.phase === 'victory') {
+        await this.dissolveDemons();
+        return;
+      }
     } finally {
-      this.sync(final);
+      if (final.phase !== 'victory') this.sync(final);
       this.busy = false;
     }
+  }
+
+  /** The land is reclaimed: every remaining demon comes apart. */
+  async dissolveDemons(): Promise<void> {
+    const demons = this.display.entities.filter((e) => e.faction === 'demon');
+    for (const e of demons) {
+      const c = this.center(e);
+      this.fx.rise(c.x, c.y, 14, [PAL.v, PAL.P, PAL.k, PAL.w], 8);
+      this.fx.burst(c.x, c.y, 10, [PAL.v, PAL.P], 0.6, -0.01, 60);
+    }
+    for (const e of demons) e.intent = null;
+    this.display.pendingSpread = [];
+    this.display.spawnMarkers = [];
+    await this.tween(900, (k) => {
+      for (const e of demons) this.visual(e.id).sink = k;
+    });
+    this.display.entities = this.display.entities.filter((e) => !demons.includes(e));
   }
 
   private async slideTo(e: Entity, to: Vec, ms: number): Promise<void> {
@@ -108,6 +129,7 @@ export class Animator {
     switch (ev.t) {
       case 'banner':
         await this.hooks.banner(ev.text, ev.sub);
+        if (ev.text.startsWith('Round')) this.display.round = final.round;
         return;
       case 'move': {
         const e = this.ent(ev.id);
@@ -238,6 +260,7 @@ export class Animator {
         if (!t) return;
         t.corrupted = ev.corrupted;
         t.consecrated = ev.consecrated;
+        this.display.pendingSpread = this.display.pendingSpread.filter((p) => p.at.x !== ev.at.x || p.at.y !== ev.at.y);
         const g = groundOf(ev.at);
         if (ev.consecrated) this.fx.rise(g.x, g.y - 6, 8, [PAL.Y, PAL.y, PAL.O]);
         else if (ev.corrupted) {
@@ -248,6 +271,7 @@ export class Animator {
         return;
       }
       case 'spawn': {
+        this.display.spawnMarkers = this.display.spawnMarkers.filter((m) => m.at.x !== ev.at.x || m.at.y !== ev.at.y);
         const src = getEntity(final, ev.id);
         const def = getUnitDef(ev.defId);
         const e: Entity = src
@@ -264,6 +288,7 @@ export class Animator {
         return;
       }
       case 'spawnBlocked': {
+        this.display.spawnMarkers = this.display.spawnMarkers.filter((m) => m.at.x !== ev.at.x || m.at.y !== ev.at.y);
         const g = groundOf(ev.at);
         this.fx.burst(g.x, g.y - 4, 10, ev.reason === 'hallowed' ? [PAL.Y, PAL.y] : [PAL.V, PAL.P], 0.9);
         this.hooks.sound('blocked');
@@ -271,6 +296,8 @@ export class Animator {
         return;
       }
       case 'sealed': {
+        this.display.spawnMarkers = this.display.spawnMarkers.filter((m) => m.sourceId !== ev.id);
+        this.display.pendingSpread = this.display.pendingSpread.filter((m) => m.sourceId !== ev.id);
         this.hooks.sound('seal');
         const g = groundOf(ev.at);
         this.fx.beam(now, g.x, g.y - 4, PAL.O, PAL.Y, 900);
@@ -318,6 +345,7 @@ export class Animator {
 
   private async attack(ev: Extract<GameEvent, { t: 'attack' }>): Promise<void> {
     const e = this.ent(ev.sourceId);
+    if (e && e.faction === 'demon') e.intent = null; // its telegraph is spent
     const now = this.now;
     const at = ev.impact ? groundOf(ev.impact) : null;
     const from = e ? this.center(e) : groundOf(ev.from);

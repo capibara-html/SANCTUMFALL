@@ -77,6 +77,7 @@ export class BattleScreen {
   private preview: Preview | null = null;
   private raf = 0;
   private last = 0;
+  private lastHud = 0;
   private resultShown = false;
   private els!: {
     canvas: HTMLCanvasElement;
@@ -133,6 +134,11 @@ export class BattleScreen {
 
   get state(): GameState {
     return this.session.state;
+  }
+
+  /** What the HUD shows: the animated picture while events play back. */
+  private get hud(): GameState {
+    return this.busy ? this.anim.display : this.session.state;
   }
 
   // --- DOM ----------------------------------------------------------------------
@@ -215,6 +221,11 @@ export class BattleScreen {
     this.last = t;
     this.anim.update(dt);
     this.renderer.draw(this.anim, this.view());
+    // keep the panels in step with the animation while events play back
+    if (this.busy && t - this.lastHud > 180) {
+      this.lastHud = t;
+      this.refresh();
+    }
     this.raf = requestAnimationFrame((tt) => this.loop(tt));
   }
 
@@ -247,7 +258,7 @@ export class BattleScreen {
       threat: interactive ? (pv?.threat ?? this.threat) : null,
       focusEnemyId: this.focusEnemy,
       intentState: pv?.forecast.after ?? (this.busy ? this.anim.display : s),
-      showIntents: this.showIntents,
+      showIntents: this.showIntents && s.phase === 'player',
       interactive,
     };
   }
@@ -257,6 +268,7 @@ export class BattleScreen {
   private async run(events: GameEvent[], opening = false): Promise<void> {
     this.busy = true;
     this.preview = null;
+    this.threat = null;
     this.refresh();
     await this.anim.play(events, this.state);
     this.busy = false;
@@ -553,7 +565,7 @@ export class BattleScreen {
   }
 
   private renderTop(): void {
-    const s = this.state;
+    const s = this.hud;
     const enc = getEncounter(this.encounterId);
     this.els.round.textContent = `${enc.subtitle} · Round ${s.round}`;
     const chip = this.els.phase;
@@ -579,7 +591,7 @@ export class BattleScreen {
     clear(box);
     for (const defId of ['penitent', 'consecrator', 'inquisitor']) {
       const def = getUnitDef(defId);
-      const e = this.state.entities.find((x) => x.defId === defId);
+      const e = this.hud.entities.find((x) => x.defId === defId);
       const threat = e ? this.threat?.entities.get(e.id) : null;
       const pips = h('div', { class: 'pips' });
       const lose = Math.min(e?.hp ?? 0, threat?.damage ?? 0);
@@ -594,7 +606,7 @@ export class BattleScreen {
         if (e.shield) status.append(h('span', { class: 'chip ward' }, 'Warded'));
         if (threat?.dies) status.append(h('span', { class: 'chip warn' }, threat.drowns ? 'Will drown' : 'Will fall'));
         else if (threat?.damage) status.append(h('span', { class: 'chip warn' }, `Threat -${threat.damage}`));
-        if (tileAt(this.state, e.pos)?.corrupted) status.append(h('span', { class: 'chip warn' }, 'On Taint'));
+        if (tileAt(this.hud, e.pos)?.corrupted) status.append(h('span', { class: 'chip warn' }, 'On Taint'));
       }
       const card = h(
         'div',
@@ -655,7 +667,7 @@ export class BattleScreen {
   private renderObjectives(): void {
     const box = this.els.objectives;
     clear(box);
-    for (const o of allObjectives(this.state)) {
+    for (const o of allObjectives(this.hud)) {
       box.append(
         h(
           'div',
@@ -666,19 +678,19 @@ export class BattleScreen {
         ),
       );
     }
-    box.append(h('div', { class: 'obj' }, h('div', { class: 'box', style: { borderColor: 'var(--taint)' } }), h('div', { style: { color: 'var(--bone-dim)' } }, `Keep the Taint below ${this.state.taintLimit} tiles`)));
+    box.append(h('div', { class: 'obj' }, h('div', { class: 'box', style: { borderColor: 'var(--taint)' } }), h('div', { style: { color: 'var(--bone-dim)' } }, `Keep the Taint below ${this.hud.taintLimit} tiles`)));
   }
 
   private renderLitany(): void {
     const box = this.els.litany;
-    const boss = this.state.entities.find((e) => hasTag(e, 'boss'));
+    const boss = this.hud.entities.find((e) => hasTag(e, 'boss'));
     if (!boss) {
       box.style.display = 'none';
       return;
     }
     box.style.display = '';
     clear(box);
-    const warded = isWarded(this.state, boss);
+    const warded = isWarded(this.hud, boss);
     box.append(h('h2', {}, `Litany of the ${boss.name}`));
     box.append(
       h(
@@ -720,7 +732,7 @@ export class BattleScreen {
   private renderThreats(): void {
     const box = this.els.threats;
     clear(box);
-    const s = this.state;
+    const s = this.hud;
     const q = intentQueue(s);
     const vigilOnTaint = s.entities.filter((e) => e.faction === 'vigil' && tileAt(s, e.pos)?.corrupted);
     if (vigilOnTaint.length) box.append(h('div', { class: 'threat' }, h('span', { class: 'ord' }, '0'), img(iconURL('taint', 2)), h('div', {}, h('span', { class: 'who' }, 'Taint '), h('span', { class: 'dmg' }, vigilOnTaint.map((e) => `${e.name} -1`).join(', ')))));
@@ -758,7 +770,7 @@ export class BattleScreen {
   private renderInspector(): void {
     const box = this.els.inspector;
     clear(box);
-    const s = this.state;
+    const s = this.hud;
     const p = this.hover;
     if (!p) {
       box.append(h('div', { class: 'empty-note' }, 'Hover any tile, unit or demon to read it.'));

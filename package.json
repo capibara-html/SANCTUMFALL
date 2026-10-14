@@ -2,7 +2,7 @@
   "name": "sanctumfall",
   "private": true,
   "version": "0.1.0",
-  "description": "SANCTUMFALL — a dark-fantasy turn-based tactics game for the browser.",
+  "description": "SANCTUMFALL \u2014 a dark-fantasy turn-based tactics game for the browser.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sim": "tsx scripts/autoplay.ts",
+    "ascii": "tsx scripts/ascii.ts",
+    "smoke": "node scripts/smoke.mjs shots"
   },
   "dependencies": {
     "@fontsource/jacquarda-bastarda-9": "^5.3.0",
