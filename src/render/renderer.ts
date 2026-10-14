@@ -374,12 +374,12 @@ export class Renderer {
       // forecasts: preview (gold) takes precedence over the threat (red)
       const f = preview && (preview.damage || preview.dies || preview.shieldLost || preview.warded) ? preview : threat && (threat.damage || threat.dies || threat.shieldLost) ? threat : null;
       if (f) {
-        const sp = sprite(e.defId);
-        const top = isBoss ? y - 52 : y - sp.ay - 10;
+        // sits on the unit's own health bar so it can never be read as a neighbour's
+        const top = isBoss ? y - 52 : py0 - 10;
         const isPreview = f === preview;
-        if (f.dies) g.drawImage(icon(f.drowns ? 'drown' : 'skull'), x - 5, top - 2);
-        else if (f.warded && !f.damage) g.drawImage(icon('bell'), x - 5, top - 2);
-        else if (f.shieldLost && !f.damage) g.drawImage(icon('shield'), x - 5, top - 2);
+        if (f.dies) g.drawImage(icon(f.drowns ? 'drown' : 'skull'), x - 5, top - 4);
+        else if (f.warded && !f.damage) g.drawImage(icon('bell'), x - 5, top - 4);
+        else if (f.shieldLost && !f.damage) g.drawImage(icon('shield'), x - 5, top - 4);
         else this.badge(x, top, `-${f.damage}`, isPreview ? PAL.O : PAL.R, PAL.W);
       }
       // ghost at predicted destination
